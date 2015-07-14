@@ -22,6 +22,12 @@ public class ShortLexicoder implements
 	}
 
 	@Override
+	public byte[] toByteArray(
+			final long value ) {
+		return Shorts.toByteArray((short) (value ^ 0x8000));
+	}
+
+	@Override
 	public Short fromByteArray(
 			final byte[] bytes ) {
 		final short value = Shorts.fromByteArray(bytes);

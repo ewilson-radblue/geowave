@@ -24,6 +24,12 @@ public class IntegerLexicoder implements
 	}
 
 	@Override
+	public byte[] toByteArray(
+			final long value ) {
+		return Ints.toByteArray((int) value ^ 0x80000000);
+	}
+
+	@Override
 	public Integer fromByteArray(
 			final byte[] bytes ) {
 		final int value = Ints.fromByteArray(bytes);

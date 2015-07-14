@@ -8,6 +8,7 @@ import java.util.List;
 import mil.nga.giat.geowave.core.index.ByteArrayId;
 import mil.nga.giat.geowave.core.index.ByteArrayRange;
 import mil.nga.giat.geowave.core.index.NumericIndexStrategy;
+import mil.nga.giat.geowave.core.index.lexicoder.Lexicoders;
 import mil.nga.giat.geowave.core.index.sfc.data.BasicNumericDataset;
 import mil.nga.giat.geowave.core.index.sfc.data.MultiDimensionalNumericData;
 import mil.nga.giat.geowave.core.index.sfc.data.NumericData;
@@ -17,7 +18,6 @@ import mil.nga.giat.geowave.core.index.sfc.data.NumericValue;
 import org.junit.Assert;
 import org.junit.Test;
 
-import com.google.common.primitives.Longs;
 import com.google.common.primitives.UnsignedBytes;
 
 public class SimpleIntegerIndexStrategyTest
@@ -76,7 +76,7 @@ public class SimpleIntegerIndexStrategyTest
 				end.getBytes()));
 		Assert.assertEquals(
 				10L,
-				Longs.fromByteArray(start.getBytes()));
+				(long) Lexicoders.LONG.fromByteArray(start.getBytes()));
 	}
 
 	@Test
@@ -94,10 +94,10 @@ public class SimpleIntegerIndexStrategyTest
 		final ByteArrayId start = range.getStart();
 		final ByteArrayId end = range.getEnd();
 		Assert.assertEquals(
-				Longs.fromByteArray(start.getBytes()),
+				(long) Lexicoders.LONG.fromByteArray(start.getBytes()),
 				startValue);
 		Assert.assertEquals(
-				Longs.fromByteArray(end.getBytes()),
+				(long) Lexicoders.LONG.fromByteArray(end.getBytes()),
 				endValue);
 	}
 
@@ -111,6 +111,7 @@ public class SimpleIntegerIndexStrategyTest
 				10L,
 				0L,
 				15L,
+				-27895L,
 				8740982L,
 				257430L,
 				82L);
@@ -127,7 +128,7 @@ public class SimpleIntegerIndexStrategyTest
 		final List<Long> convertedValues = new ArrayList<>(
 				values.size());
 		for (final byte[] bytes : byteArrays) {
-			convertedValues.add(Longs.fromByteArray(bytes));
+			convertedValues.add(Lexicoders.LONG.fromByteArray(bytes));
 		}
 		Assert.assertTrue(values.equals(convertedValues));
 	}
@@ -142,7 +143,7 @@ public class SimpleIntegerIndexStrategyTest
 				1);
 		final ByteArrayId insertionId = insertionIds.get(0);
 		Assert.assertEquals(
-				Longs.fromByteArray(insertionId.getBytes()),
+				(long) Lexicoders.LONG.fromByteArray(insertionId.getBytes()),
 				pointValue);
 	}
 
@@ -160,7 +161,7 @@ public class SimpleIntegerIndexStrategyTest
 		int i = 0;
 		for (final ByteArrayId insertionId : insertionIds) {
 			Assert.assertEquals(
-					Longs.fromByteArray(insertionId.getBytes()),
+					(long) Lexicoders.LONG.fromByteArray(insertionId.getBytes()),
 					startValue + i++);
 		}
 	}

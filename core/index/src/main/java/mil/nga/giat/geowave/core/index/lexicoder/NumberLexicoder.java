@@ -21,6 +21,16 @@ public interface NumberLexicoder<T extends Number>
 			T value );
 
 	/**
+	 * Get a byte[] that represents the number value. The most significant bits
+	 * will be truncated if necessary.
+	 *
+	 * @param value
+	 * @return the byte array representing the number
+	 */
+	public byte[] toByteArray(
+			long value );
+
+	/**
 	 * Get the value of a byte array
 	 *
 	 * @param bytes

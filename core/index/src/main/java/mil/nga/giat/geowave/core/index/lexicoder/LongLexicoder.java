@@ -23,6 +23,12 @@ public class LongLexicoder implements
 	}
 
 	@Override
+	public byte[] toByteArray(
+			final long value ) {
+		return Longs.toByteArray(value ^ 0x8000000000000000l);
+	}
+
+	@Override
 	public Long fromByteArray(
 			final byte[] bytes ) {
 		final long value = Longs.fromByteArray(bytes);
