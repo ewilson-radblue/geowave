@@ -20,6 +20,7 @@ import mil.nga.giat.geowave.core.index.NumericIndexStrategy;
 import mil.nga.giat.geowave.core.index.sfc.data.MultiDimensionalNumericData;
 import mil.nga.giat.geowave.core.store.adapter.AdapterStore;
 import mil.nga.giat.geowave.core.store.adapter.DataAdapter;
+import mil.nga.giat.geowave.core.store.adapter.statistics.RowRangeDataStatistics;
 import mil.nga.giat.geowave.core.store.index.Index;
 import mil.nga.giat.geowave.core.store.query.DistributableQuery;
 import mil.nga.giat.geowave.core.store.query.QueryOptions;
@@ -29,6 +30,7 @@ import mil.nga.giat.geowave.datastore.accumulo.mapreduce.JobContextAdapterStore;
 import mil.nga.giat.geowave.datastore.accumulo.mapreduce.JobContextIndexStore;
 import mil.nga.giat.geowave.datastore.accumulo.mapreduce.input.GeoWaveInputConfigurator.InputConfig;
 import mil.nga.giat.geowave.datastore.accumulo.mapreduce.input.GeoWaveInputFormat.IntermediateSplitInfo.RangeLocationPair;
+import mil.nga.giat.geowave.datastore.accumulo.metadata.AccumuloDataStatisticsStore;
 import mil.nga.giat.geowave.datastore.accumulo.util.AccumuloUtils;
 
 import org.apache.accumulo.core.client.AccumuloException;
@@ -65,11 +67,11 @@ import org.apache.log4j.Logger;
 
 // @formatter:off
 /*if[ACCUMULO_1.5.2]
-import java.io.ByteArrayOutputStream;
-import java.io.DataOutputStream;
-import java.nio.ByteBuffer;
-import org.apache.accumulo.core.security.thrift.TCredentials;
-end[ACCUMULO_1.5.2]*/
+ import java.io.ByteArrayOutputStream;
+ import java.io.DataOutputStream;
+ import java.nio.ByteBuffer;
+ import org.apache.accumulo.core.security.thrift.TCredentials;
+ end[ACCUMULO_1.5.2]*/
 // @formatter:on
 
 public class GeoWaveInputFormat<T> extends
@@ -288,22 +290,12 @@ public class GeoWaveInputFormat<T> extends
 			final String tableId )
 			throws TableNotFoundException {
 		TabletLocator tabletLocator;
-		// @formatter:off
-		/*if[ACCUMULO_1.5.2]
-		tabletLocator = TabletLocator.getInstance(
-				instance,
-				new Text(
-						Tables.getTableId(
-								instance,
-								tableName)));
 
-  		else[ACCUMULO_1.5.2]*/
 		tabletLocator = TabletLocator.getLocator(
 				instance,
 				new Text(
 						tableId));
-		/*end[ACCUMULO_1.5.2]*/
-		// @formatter:on
+
 		return tabletLocator;
 	}
 
@@ -318,25 +310,7 @@ public class GeoWaveInputFormat<T> extends
 			AccumuloSecurityException,
 			TableNotFoundException,
 			IOException {
-		// @formatter:off
-		/*if[ACCUMULO_1.5.2]
-		final ByteArrayOutputStream backingByteArray = new ByteArrayOutputStream();
-		final DataOutputStream output = new DataOutputStream(
-				backingByteArray);
-		new PasswordToken(
-				password).write(output);
-		output.close();
-		final ByteBuffer buffer = ByteBuffer.wrap(backingByteArray.toByteArray());
-		final TCredentials credentials = new TCredentials(
-				userName,
-				PasswordToken.class.getCanonicalName(),
-				buffer,
-				instanceId);
-		return tabletLocator.binRanges(
-				rangeList,
-				tserverBinnedRanges,
-				credentials).isEmpty();
-  		else[ACCUMULO_1.5.2]*/
+
 		return tabletLocator.binRanges(
 				new Credentials(
 						userName,
@@ -344,8 +318,7 @@ public class GeoWaveInputFormat<T> extends
 								password)),
 				rangeList,
 				tserverBinnedRanges).isEmpty();
-  		/*end[ACCUMULO_1.5.2]*/
-		// @formatter:on
+
 	}
 
 	protected static String getInstanceName(
@@ -432,6 +405,36 @@ public class GeoWaveInputFormat<T> extends
 		return retVal;
 	}
 
+	private Range getRangeMax(
+			final Index index,
+			final JobContext context ) {
+		try {
+			final AccumuloOperations operations = GeoWaveInputFormat.getAccumuloOperations(context);
+			AccumuloDataStatisticsStore store = new AccumuloDataStatisticsStore(
+					operations);
+			RowRangeDataStatistics stats = (RowRangeDataStatistics) store.getDataStatistics(
+					null,
+					RowRangeDataStatistics.getId(index.getId()),
+					GeoWaveInputFormat.getAuthorizations(context));
+			return new Range(
+					new Key(
+							new Text(
+									stats.getMin())),
+					new Key(
+							new Text(
+									stats.getMax())));
+		}
+		catch (AccumuloException e) {
+			// TODO Auto-generated catch block
+			e.printStackTrace();
+		}
+		catch (AccumuloSecurityException e) {
+			// TODO Auto-generated catch block
+			e.printStackTrace();
+		}
+		return new Range();
+	}
+
 	private TreeSet<IntermediateSplitInfo> getIntermediateSplits(
 			final JobContext context,
 			final Integer maxSplits )
@@ -466,7 +469,9 @@ public class GeoWaveInputFormat<T> extends
 			}
 			else {
 				ranges = new TreeSet<Range>();
-				ranges.add(new Range());
+				ranges.add(this.getRangeMax(
+						index,
+						context));
 			}
 			// get the metadata information for these ranges
 			final Map<String, Map<KeyExtent, List<Range>>> tserverBinnedRanges = new HashMap<String, Map<KeyExtent, List<Range>>>();
