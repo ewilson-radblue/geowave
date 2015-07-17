@@ -2,13 +2,12 @@ package mil.nga.giat.geowave.core.index.simple;
 
 import java.util.ArrayList;
 import java.util.Arrays;
+import java.util.Collection;
 import java.util.Collections;
 import java.util.List;
 
 import mil.nga.giat.geowave.core.index.ByteArrayId;
 import mil.nga.giat.geowave.core.index.ByteArrayRange;
-import mil.nga.giat.geowave.core.index.NumericIndexStrategy;
-import mil.nga.giat.geowave.core.index.lexicoder.Lexicoders;
 import mil.nga.giat.geowave.core.index.sfc.data.BasicNumericDataset;
 import mil.nga.giat.geowave.core.index.sfc.data.MultiDimensionalNumericData;
 import mil.nga.giat.geowave.core.index.sfc.data.NumericData;
@@ -17,13 +16,53 @@ import mil.nga.giat.geowave.core.index.sfc.data.NumericValue;
 
 import org.junit.Assert;
 import org.junit.Test;
+import org.junit.runner.RunWith;
+import org.junit.runners.Parameterized;
+import org.junit.runners.Parameterized.Parameters;
 
 import com.google.common.primitives.UnsignedBytes;
 
-public class SimpleIntegerIndexStrategyTest
+@RunWith(Parameterized.class)
+public class SimpleNumericIndexStrategyTest
 {
 
-	private static final NumericIndexStrategy STRATEGY = new SimpleIntegerIndexStrategy();
+	private final SimpleNumericIndexStrategy<? extends Number> strategy;
+
+	public SimpleNumericIndexStrategyTest(
+			final SimpleNumericIndexStrategy<?> strategy ) {
+		this.strategy = strategy;
+	}
+
+	@Parameters
+	public static Collection<Object[]> instancesToTest() {
+		return Arrays.asList(
+				new Object[] {
+					new SimpleShortIndexStrategy()
+				},
+				new Object[] {
+					new SimpleIntegerIndexStrategy()
+				},
+				new Object[] {
+					new SimpleLongIndexStrategy()
+				});
+	}
+
+	private static long castToLong(
+			final Number n ) {
+		if (n instanceof Short) {
+			return ((short) n);
+		}
+		else if (n instanceof Integer) {
+			return ((int) n);
+		}
+		else if (n instanceof Long) {
+			return (long) n;
+		}
+		else {
+			throw new UnsupportedOperationException(
+					"only supports casting Short, Integer, and Long");
+		}
+	}
 
 	private static MultiDimensionalNumericData getIndexedRange(
 			final long value ) {
@@ -53,10 +92,10 @@ public class SimpleIntegerIndexStrategyTest
 				dataPerDimension);
 	}
 
-	private static byte[] getByteArray(
+	private byte[] getByteArray(
 			final long value ) {
 		final MultiDimensionalNumericData indexedRange = getIndexedRange(value);
-		final List<ByteArrayId> insertionIds = STRATEGY.getInsertionIds(indexedRange);
+		final List<ByteArrayId> insertionIds = strategy.getInsertionIds(indexedRange);
 		final ByteArrayId insertionId = insertionIds.get(0);
 		return insertionId.getBytes();
 	}
@@ -64,7 +103,7 @@ public class SimpleIntegerIndexStrategyTest
 	@Test
 	public void testGetQueryRangesPoint() {
 		final MultiDimensionalNumericData indexedRange = getIndexedRange(10l);
-		final List<ByteArrayRange> ranges = STRATEGY.getQueryRanges(indexedRange);
+		final List<ByteArrayRange> ranges = strategy.getQueryRanges(indexedRange);
 		Assert.assertEquals(
 				ranges.size(),
 				1);
@@ -76,7 +115,8 @@ public class SimpleIntegerIndexStrategyTest
 				end.getBytes()));
 		Assert.assertEquals(
 				10L,
-				(long) Lexicoders.LONG.fromByteArray(start.getBytes()));
+				castToLong(strategy.getLexicoder().fromByteArray(
+						start.getBytes())));
 	}
 
 	@Test
@@ -86,7 +126,7 @@ public class SimpleIntegerIndexStrategyTest
 		final MultiDimensionalNumericData indexedRange = getIndexedRange(
 				startValue,
 				endValue);
-		final List<ByteArrayRange> ranges = STRATEGY.getQueryRanges(indexedRange);
+		final List<ByteArrayRange> ranges = strategy.getQueryRanges(indexedRange);
 		Assert.assertEquals(
 				ranges.size(),
 				1);
@@ -94,10 +134,12 @@ public class SimpleIntegerIndexStrategyTest
 		final ByteArrayId start = range.getStart();
 		final ByteArrayId end = range.getEnd();
 		Assert.assertEquals(
-				(long) Lexicoders.LONG.fromByteArray(start.getBytes()),
+				castToLong(strategy.getLexicoder().fromByteArray(
+						start.getBytes())),
 				startValue);
 		Assert.assertEquals(
-				(long) Lexicoders.LONG.fromByteArray(end.getBytes()),
+				castToLong(strategy.getLexicoder().fromByteArray(
+						end.getBytes())),
 				endValue);
 	}
 
@@ -108,13 +150,15 @@ public class SimpleIntegerIndexStrategyTest
 	@Test
 	public void testRangeSortOrder() {
 		final List<Long> values = Arrays.asList(
-				10L,
-				0L,
-				15L,
-				-27895L,
-				8740982L,
-				257430L,
-				82L);
+				10l,
+				0l,
+				15l,
+				-275l,
+				982l,
+				430l,
+				-1l,
+				1l,
+				82l);
 		final List<byte[]> byteArrays = new ArrayList<>(
 				values.size());
 		for (final long value : values) {
@@ -128,40 +172,44 @@ public class SimpleIntegerIndexStrategyTest
 		final List<Long> convertedValues = new ArrayList<>(
 				values.size());
 		for (final byte[] bytes : byteArrays) {
-			convertedValues.add(Lexicoders.LONG.fromByteArray(bytes));
+			final long value = castToLong(strategy.getLexicoder().fromByteArray(
+					bytes));
+			convertedValues.add(value);
 		}
 		Assert.assertTrue(values.equals(convertedValues));
 	}
 
 	@Test
 	public void testGetInsertionIdsPoint() {
-		final long pointValue = 875926;
+		final long pointValue = 5926;
 		final MultiDimensionalNumericData indexedData = getIndexedRange(pointValue);
-		final List<ByteArrayId> insertionIds = STRATEGY.getInsertionIds(indexedData);
+		final List<ByteArrayId> insertionIds = strategy.getInsertionIds(indexedData);
 		Assert.assertEquals(
 				insertionIds.size(),
 				1);
 		final ByteArrayId insertionId = insertionIds.get(0);
 		Assert.assertEquals(
-				(long) Lexicoders.LONG.fromByteArray(insertionId.getBytes()),
+				castToLong(strategy.getLexicoder().fromByteArray(
+						insertionId.getBytes())),
 				pointValue);
 	}
 
 	@Test
 	public void testGetInsertionIdsRange() {
-		final long startValue = 875926;
-		final long endValue = 875926 + 15;
+		final long startValue = 9876;
+		final long endValue = startValue + 15;
 		final MultiDimensionalNumericData indexedData = getIndexedRange(
 				startValue,
 				endValue);
-		final List<ByteArrayId> insertionIds = STRATEGY.getInsertionIds(indexedData);
+		final List<ByteArrayId> insertionIds = strategy.getInsertionIds(indexedData);
 		Assert.assertEquals(
 				insertionIds.size(),
 				(int) ((endValue - startValue) + 1));
 		int i = 0;
 		for (final ByteArrayId insertionId : insertionIds) {
 			Assert.assertEquals(
-					(long) Lexicoders.LONG.fromByteArray(insertionId.getBytes()),
+					castToLong(strategy.getLexicoder().fromByteArray(
+							insertionId.getBytes())),
 					startValue + i++);
 		}
 	}
